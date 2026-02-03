@@ -1,0 +1,251 @@
+# =============================================================================
+# metrics.yaml - แบบสำรวจหลังอบรม "AI for Business Workshop"
+# =============================================================================
+# กำหนดโดย: [ชื่อ Data Steward]
+# วันที่สร้าง: 2026-02-04
+# ปรับปรุงล่าสุด: 2026-02-04
+# เวอร์ชัน: 1.0
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ข้อมูลเกี่ยวกับ Dataset
+# -----------------------------------------------------------------------------
+dataset:
+  name: "Post-Training Survey: AI for Business Workshop"
+  source: "Google Form → Google Sheet → CSV"
+  collection_date: "2026-01-28"
+  total_participants: 50
+  description: |
+    แบบสำรวจความพึงพอใจหลังการอบรมเชิงปฏิบัติการ "AI for Business"
+    จัดขึ้นวันที่ 28 มกราคม 2569 ณ ห้องประชุมใหญ่ ชั้น 5
+
+# -----------------------------------------------------------------------------
+# คอลัมน์ในข้อมูล (Data Dictionary)
+# -----------------------------------------------------------------------------
+columns:
+  timestamp:
+    type: datetime
+    description: "เวลาที่ส่งแบบสำรวจ"
+
+  q1_satisfaction:
+    type: integer
+    range: [1, 5]
+    description: "ความพึงพอใจโดยรวม (1=น้อยที่สุด, 5=มากที่สุด)"
+
+  q2_content:
+    type: integer
+    range: [1, 5]
+    description: "เนื้อหาเข้าใจง่าย (1=น้อยที่สุด, 5=มากที่สุด)"
+
+  q3_instructor:
+    type: integer
+    range: [1, 5]
+    description: "วิทยากรอธิบายชัดเจน (1=น้อยที่สุด, 5=มากที่สุด)"
+
+  q4_applicable:
+    type: integer
+    range: [1, 5]
+    description: "นำไปใช้งานได้จริง (1=น้อยที่สุด, 5=มากที่สุด)"
+
+  q5_department:
+    type: string
+    allowed_values: ["IT", "HR", "Sales", "Finance", "Marketing", "Operations"]
+    description: "แผนกที่สังกัด"
+
+  q6_years:
+    type: integer
+    range: [0, 40]
+    description: "อายุงาน (ปี)"
+
+  q7_recommend:
+    type: string
+    allowed_values: ["Yes", "No", "Maybe"]
+    description: "จะแนะนำให้เพื่อนร่วมงานมาอบรมหรือไม่"
+
+  q8_comments:
+    type: text
+    description: "ความคิดเห็นเพิ่มเติม (open-ended)"
+    analysis_allowed: false  # ห้าม AI วิเคราะห์โดยไม่มี codebook
+
+# -----------------------------------------------------------------------------
+# Metrics ที่อนุญาต
+# -----------------------------------------------------------------------------
+allowed_metrics:
+
+  # ---------------------------------------------------------------------------
+  # กลุ่ม 1: ตัวชี้วัดพื้นฐาน (Basic Metrics)
+  # ---------------------------------------------------------------------------
+  response_count:
+    name: "จำนวนผู้ตอบแบบสำรวจ"
+    formula: "COUNT(responses)"
+    unit: "คน"
+    priority: high
+
+  response_rate:
+    name: "อัตราการตอบแบบสำรวจ"
+    formula: "COUNT(responses) / dataset.total_participants * 100"
+    unit: "%"
+    priority: high
+    thresholds:
+      good: ">= 70"
+      acceptable: ">= 50"
+      poor: "< 50"
+
+  # ---------------------------------------------------------------------------
+  # กลุ่ม 2: คะแนนความพึงพอใจ (Satisfaction Scores)
+  # ---------------------------------------------------------------------------
+  overall_satisfaction:
+    name: "คะแนนความพึงพอใจโดยรวม"
+    formula: "AVG(q1_satisfaction)"
+    source_column: "q1_satisfaction"
+    unit: "คะแนน (1-5)"
+    priority: high
+    min_sample: 10
+    thresholds:
+      excellent: ">= 4.5"
+      good: ">= 4.0"
+      acceptable: ">= 3.5"
+      needs_improvement: "< 3.5"
+
+  content_score:
+    name: "คะแนนความเข้าใจเนื้อหา"
+    formula: "AVG(q2_content)"
+    source_column: "q2_content"
+    unit: "คะแนน (1-5)"
+    priority: high
+    min_sample: 10
+
+  instructor_score:
+    name: "คะแนนวิทยากร"
+    formula: "AVG(q3_instructor)"
+    source_column: "q3_instructor"
+    unit: "คะแนน (1-5)"
+    priority: high
+    min_sample: 10
+
+  applicability_score:
+    name: "คะแนนการนำไปใช้งานได้จริง"
+    formula: "AVG(q4_applicable)"
+    source_column: "q4_applicable"
+    unit: "คะแนน (1-5)"
+    priority: medium
+    min_sample: 10
+
+  # ---------------------------------------------------------------------------
+  # กลุ่ม 3: การกระจาย (Distribution)
+  # ---------------------------------------------------------------------------
+  satisfaction_distribution:
+    name: "การกระจายระดับความพึงพอใจ"
+    formula: "GROUP_COUNT(q1_satisfaction)"
+    source_column: "q1_satisfaction"
+    output_type: "frequency_table"
+    priority: medium
+
+  department_response_count:
+    name: "จำนวนผู้ตอบแยกตามแผนก"
+    formula: "GROUP_COUNT(q5_department)"
+    source_column: "q5_department"
+    output_type: "frequency_table"
+    priority: medium
+    note: "ใช้ดูว่าแผนกไหนตอบมากน้อย ไม่ใช่เพื่อเปรียบเทียบคะแนน"
+
+  # ---------------------------------------------------------------------------
+  # กลุ่ม 4: Recommendation (NPS-like)
+  # ---------------------------------------------------------------------------
+  recommendation_rate:
+    name: "อัตราการแนะนำ"
+    formula: "COUNT(q7_recommend = 'Yes') / COUNT(responses) * 100"
+    source_column: "q7_recommend"
+    unit: "%"
+    priority: high
+    thresholds:
+      good: ">= 70"
+      acceptable: ">= 50"
+      poor: "< 50"
+
+# -----------------------------------------------------------------------------
+# การวิเคราะห์ที่ต้องขออนุญาตก่อน (Requires Approval)
+# -----------------------------------------------------------------------------
+requires_approval:
+
+  department_comparison:
+    name: "เปรียบเทียบคะแนนระหว่างแผนก"
+    conditions:
+      - "ทุกแผนกต้องมี n >= 10"
+      - "ต้องระบุวัตถุประสงค์การเปรียบเทียบ"
+      - "ต้องได้รับอนุมัติจาก Data Steward"
+    reason: "ป้องกันการสรุปผิดจาก sample size เล็ก"
+
+  correlation_analysis:
+    name: "วิเคราะห์ความสัมพันธ์ระหว่างตัวแปร"
+    conditions:
+      - "ต้องระบุ hypothesis ล่วงหน้า"
+      - "n >= 30"
+      - "ต้องรายงาน confidence interval"
+    reason: "ป้องกัน spurious correlation"
+
+  open_ended_analysis:
+    name: "วิเคราะห์ความคิดเห็นแบบ open-ended"
+    conditions:
+      - "ต้องมี codebook กำหนด categories"
+      - "ต้องแสดง raw quotes ประกอบ"
+      - "ห้ามสรุป sentiment โดยไม่มี codebook"
+    reason: "ป้องกันการตีความผิด"
+
+# -----------------------------------------------------------------------------
+# สิ่งที่ห้าม AI ทำ (Prohibited)
+# -----------------------------------------------------------------------------
+prohibited:
+  - action: "สร้าง metric หรือ index ใหม่"
+    reason: "ไม่มี benchmark และไม่สามารถเปรียบเทียบได้"
+
+  - action: "หา correlation โดยไม่ได้รับอนุญาต"
+    reason: "อาจเกิด spurious correlation"
+
+  - action: "เปรียบเทียบระหว่างแผนกถ้า n < 10"
+    reason: "sample size ไม่เพียงพอ"
+
+  - action: "ทำ sentiment analysis โดยไม่มี codebook"
+    reason: "ไม่มีมาตรฐานในการจำแนก positive/negative"
+
+  - action: "สรุปผลจากกลุ่มที่มี n < 10"
+    reason: "ไม่ representative"
+
+  - action: "ใช้ q6_years (อายุงาน) ในการวิเคราะห์โดยไม่ได้รับอนุญาต"
+    reason: "อาจนำไปสู่ข้อสรุปที่ bias"
+
+# -----------------------------------------------------------------------------
+# กฎการรายงาน (Reporting Rules)
+# -----------------------------------------------------------------------------
+reporting_rules:
+
+  always_show:
+    - "จำนวน n ของทุก metric"
+    - "ช่วงเวลาที่เก็บข้อมูล"
+    - "response rate"
+
+  rounding:
+    scores: 2  # ทศนิยม 2 ตำแหน่ง
+    percentages: 1  # ทศนิยม 1 ตำแหน่ง
+
+  warnings:
+    low_response_rate: "แสดง warning ถ้า response rate < 50%"
+    small_sample: "แสดง warning ถ้า n < 10 ในกลุ่มย่อย"
+
+# -----------------------------------------------------------------------------
+# หมายเหตุและข้อจำกัด (Notes & Limitations)
+# -----------------------------------------------------------------------------
+notes:
+  - "คะแนน 1-2 = ไม่พอใจ, 3 = ปานกลาง, 4-5 = พอใจ"
+  - "แผนก Marketing มีพนักงาน 3 คน อาจมี sample size ไม่เพียงพอ"
+  - "การอบรมครั้งนี้เป็นครั้งแรก ไม่มี baseline เปรียบเทียบ"
+  - "ข้อมูล open-ended บางส่วนเป็นภาษาไทยปนอังกฤษ"
+
+# -----------------------------------------------------------------------------
+# ประวัติการเปลี่ยนแปลง (Change Log)
+# -----------------------------------------------------------------------------
+changelog:
+  - version: "1.0"
+    date: "2026-02-04"
+    author: "[ชื่อ Data Steward]"
+    changes: "สร้างไฟล์ครั้งแรก"
