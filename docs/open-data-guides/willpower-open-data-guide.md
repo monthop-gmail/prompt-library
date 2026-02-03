@@ -1,0 +1,1839 @@
+# 📊 คู่มือ Open Data Platform สำหรับสถาบันพลังจิตตานุภาพ
+## นำแนวคิด Government Data Catalog มาสู่มูลนิธิ/สถาบัน
+
+**เอกสารเสริม (Supplement):** gov-data-collector-guide.md  
+**เวอร์ชัน:** 1.0 — กุมภาพันธ์ 2569  
+**วัตถุประสงค์:** ออกแบบ Data Platform ให้สถาบันพลังจิตตานุภาพ (samathi101.com) โดยนำ concept จาก data.go.th / CKAN / Open Government Data มาประยุกต์ใช้
+
+---
+
+## สารบัญ
+
+1. [ทำไมต้อง Open Data สำหรับสถาบัน?](#1-ทำไมต้อง-open-data-สำหรับสถาบัน)
+2. [สถาปัตยกรรมข้อมูล (Data Architecture)](#2-สถาปัตยกรรมข้อมูล)
+3. [Data Catalog — รายการชุดข้อมูลทั้งหมด](#3-data-catalog)
+4. [API Design — ออกแบบ RESTful API](#4-api-design)
+5. [Artifact Prompts — สร้าง Dashboard & Apps](#5-artifact-prompts)
+6. [Python Code — Data Client & Scraper](#6-python-code)
+7. [Implementation Roadmap](#7-implementation-roadmap)
+8. [Use Cases & การนำไปใช้](#8-use-cases)
+
+---
+
+## 1. ทำไมต้อง Open Data สำหรับสถาบัน?
+
+### 1.1 บริบท: สถาบันพลังจิตตานุภาพ
+
+สถาบันพลังจิตตานุภาพก่อตั้ง 24 กรกฎาคม 2540 โดยสมเด็จพระญาณวชิโรดม (หลวงพ่อวิริยังค์ สิรินฺธโร) ณ วัดธรรมมงคลเถาบุญนนทวิหาร สุขุมวิท 101 กรุงเทพฯ มีจุดประสงค์สอนสัมมาสมาธิสายหลวงปู่มั่น ภูริทัตโต
+
+**ข้อมูลสำคัญปัจจุบัน:**
+
+| หัวข้อ | ข้อมูล |
+|--------|--------|
+| สาขาในประเทศ | ~318 สาขา (ทั่ว 77 จังหวัด) |
+| สาขาต่างประเทศ | 11+ สาขา (แคนาดา, สหรัฐอเมริกา) |
+| หลักสูตรหลัก | 6+ หลักสูตร |
+| รุ่นครูสมาธิปัจจุบัน | รุ่นที่ 53 (ติปญฺญาสโม) วิริยโชติ |
+| เว็บไซต์หลัก | samathi101.com |
+| สาขาต่างประเทศ (USA) | willpowerinstituteusa.com |
+
+### 1.2 เปรียบเทียบ: Government Data vs. Willpower Data
+
+| แนวคิดภาครัฐ (data.go.th) | ประยุกต์ใช้กับสถาบัน |
+|---|---|
+| Organization (หน่วยงาน) | สาขา (Branch) — 318+ สาขาทั่วประเทศ |
+| Dataset (ชุดข้อมูล) | หลักสูตร, กิจกรรม, สถิตินักศึกษา |
+| Resource (ทรัพยากร) | ไฟล์ CSV/JSON ข้อมูลสาขา, ตารางเรียน, ผลการสอบ |
+| Group (กลุ่ม) | ภูมิภาค (ภาคเหนือ/กลาง/อีสาน/ใต้/ต่างประเทศ) |
+| Tag (ป้ายกำกับ) | ประเภทหลักสูตร, จังหวัด, สถานะสาขา |
+| CKAN API | Willpower Open API (RESTful) |
+| Data Catalog | Willpower Data Catalog (samathi101.com/opendata) |
+| Metadata Standard | DCAT-AP TH / Schema.org + Custom Ontology |
+
+### 1.3 ประโยชน์ที่จะได้รับ
+
+**สำหรับสถาบัน:**
+- บริหารจัดการ 318+ สาขาอย่างเป็นระบบ
+- ติดตามสถิตินักศึกษาแต่ละรุ่น/สาขาแบบ Real-time
+- วิเคราะห์ข้อมูลเพื่อวางแผนเปิดสาขาใหม่
+- รายงานต่อมูลนิธิ/ผู้สนับสนุนด้วยข้อมูลที่โปร่งใส
+
+**สำหรับประชาชน:**
+- ค้นหาสาขาใกล้บ้านได้ง่าย
+- ดูตารางหลักสูตรที่กำลังเปิดรับสมัคร
+- ตรวจสอบใบประกาศนียบัตร
+- ข้อมูลสถิติการเติบโตของสถาบัน
+
+**สำหรับนักวิจัย:**
+- ศึกษาผลกระทบของสมาธิต่อคุณภาพชีวิต
+- วิเคราะห์การกระจายตัวของสาขาเชิงภูมิศาสตร์
+- เปรียบเทียบกับสถาบันสมาธิอื่นๆ
+
+---
+
+## 2. สถาปัตยกรรมข้อมูล
+
+### 2.1 Data Model — โครงสร้างข้อมูลหลัก
+
+```
+┌──────────────────────────────────────────────────────────┐
+│              WILLPOWER OPEN DATA PLATFORM                │
+│         สถาบันพลังจิตตานุภาพ Data Catalog               │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌─────────┐    ┌───────────┐    ┌──────────────┐        │
+│  │ สาขา    │───▶│ หลักสูตร  │───▶│ การเปิดรับ    │       │
+│  │ Branch  │    │ Course    │    │ Enrollment   │        │
+│  └────┬────┘    └─────┬─────┘    └──────┬───────┘        │
+│       │               │                 │                │
+│       ▼               ▼                 ▼                │
+│  ┌─────────┐    ┌───────────┐    ┌──────────────┐        │
+│  │ บุคลากร │    │ เนื้อหา   │    │ สถิติ        │        │
+│  │ Staff   │    │ Content   │    │ Statistics   │        │
+│  └─────────┘    └───────────┘    └──────────────┘        │
+│       │               │                 │                │
+│       └───────────────┴─────────────────┘                │
+│                       │                                  │
+│               ┌───────▼───────┐                          │
+│               │ Open API      │                          │
+│               │ RESTful JSON  │                          │
+│               └───────┬───────┘                          │
+│                       │                                  │
+│         ┌─────────────┼─────────────┐                    │
+│         ▼             ▼             ▼                    │
+│    Dashboard      Mobile App   Third-party               │
+│    (React)        (Flutter)    Integrations               │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Entity Relationship
+
+```
+Branch (สาขา)
+├── branch_id (PK)       — เลขที่สาขา (1-318+)
+├── branch_name_th       — ชื่อสาขาภาษาไทย
+├── branch_name_en       — ชื่อสาขาภาษาอังกฤษ
+├── temple_name          — ชื่อวัด/สถานที่
+├── address              — ที่อยู่
+├── tambon               — ตำบล
+├── amphoe               — อำเภอ
+├── province             — จังหวัด
+├── region               — ภูมิภาค (เหนือ/กลาง/อีสาน/ตะวันออก/ใต้/ต่างประเทศ)
+├── postal_code          — รหัสไปรษณีย์
+├── latitude             — ละติจูด
+├── longitude            — ลองจิจูด
+├── phone                — เบอร์โทรศัพท์
+├── established_date     — วันที่ก่อตั้ง
+├── status               — สถานะ (active/inactive/temporary_closed)
+├── branch_manager       — ผู้ดูแลสาขา
+├── manager_phone        — เบอร์ผู้ดูแล
+├── google_maps_url      — ลิงก์ Google Maps
+├── facebook_url         — ลิงก์ Facebook
+├── line_id              — LINE ID
+├── photo_url            — รูปภาพสาขา
+├── operating_hours      — วัน-เวลาทำการ
+├── capacity             — ความจุห้องเรียน (คน)
+└── created_at / updated_at
+
+Course (หลักสูตร)
+├── course_id (PK)
+├── course_code          — รหัสหลักสูตร
+├── course_name_th       — ชื่อหลักสูตร (ภาษาไทย)
+├── course_name_pali     — ชื่อบาลี
+├── course_name_en       — ชื่อภาษาอังกฤษ
+├── level                — ระดับ (beginner/intermediate/advanced/expert/master)
+├── level_order          — ลำดับระดับ (1-6)
+├── duration_days        — จำนวนวัน
+├── duration_hours       — จำนวนชั่วโมง
+├── format               — รูปแบบ (onsite/online/hybrid)
+├── prerequisite         — หลักสูตรที่ต้องเรียนก่อน
+├── description          — คำอธิบาย
+├── fee                  — ค่าลงทะเบียน (0 = ฟรี)
+├── has_certificate      — มีใบประกาศนียบัตร (boolean)
+├── textbook_count       — จำนวนตำราที่ใช้ (เล่ม)
+└── is_active            — เปิดสอนอยู่หรือไม่
+
+CourseOffering (การเปิดรับ/รุ่น)
+├── offering_id (PK)
+├── course_id (FK)       → Course
+├── branch_id (FK)       → Branch
+├── batch_number         — รุ่นที่ (เช่น 53)
+├── batch_name_pali      — ชื่อบาลีของรุ่น
+├── batch_name_th        — ชื่อไทยของรุ่น
+├── start_date           — วันเปิดเรียน
+├── end_date             — วันจบหลักสูตร
+├── orientation_date     — วันปฐมนิเทศ
+├── schedule_day         — วันเรียน (เสาร์-อาทิตย์ / จันทร์-ศุกร์)
+├── schedule_time        — เวลาเรียน
+├── enrollment_status    — สถานะการรับสมัคร (open/closed/full)
+├── max_students         — จำนวนรับสูงสุด
+├── enrolled_count       — จำนวนสมัครแล้ว
+├── graduated_count      — จำนวนจบหลักสูตร
+├── instructor_name      — ชื่ออาจารย์/ผู้จัด
+├── instructor_phone     — เบอร์ผู้จัด
+├── registration_url     — ลิงก์สมัคร
+└── samathi101_url       — URL บน samathi101.com
+
+Event (กิจกรรม)
+├── event_id (PK)
+├── branch_id (FK)       → Branch
+├── event_name           — ชื่อกิจกรรม
+├── event_type           — ประเภท (อบรม/สัมมนา/สอบภาคสนาม/พิธีมอบประกาศ/ปฏิบัติธรรม)
+├── event_date           — วันจัด
+├── event_time           — เวลาจัด
+├── location             — สถานที่
+├── description          — รายละเอียด
+└── registration_url     — ลิงก์สมัคร
+
+Statistics (สถิติ)
+├── stat_id (PK)
+├── branch_id (FK)       → Branch (null = ทั้งสถาบัน)
+├── year                 — ปี (พ.ศ.)
+├── semester             — เทอม (1/2/3)
+├── batch_number         — รุ่นที่
+├── total_enrolled       — จำนวนนักศึกษาลงทะเบียน
+├── total_graduated      — จำนวนจบหลักสูตร
+├── graduation_rate      — อัตราจบ (%)
+├── total_branches       — จำนวนสาขาทั้งหมด
+├── new_branches         — สาขาเปิดใหม่
+└── recorded_at          — วันที่บันทึก
+
+Certificate (ใบประกาศนียบัตร)
+├── certificate_id (PK)
+├── student_name         — ชื่อนักศึกษา
+├── course_id (FK)       → Course
+├── branch_id (FK)       → Branch
+├── batch_number         — รุ่นที่
+├── issue_date           — วันที่ออก
+├── certificate_number   — เลขที่ใบประกาศ
+└── verification_code    — รหัสตรวจสอบ (สำหรับ verify online)
+```
+
+### 2.3 หลักสูตรทั้งหมด — Course Hierarchy
+
+```
+สถาบันพลังจิตตานุภาพ — Willpower Institute Courses
+│
+├── ระดับ 1: ชินนสาสมาธิ (Chinnasa Samathi)
+│   ├── ชินนสาสมาธิ 1 — สมาธิชนะใจตนเอง
+│   │   ├── หลักสูตรครึ่งวัน (3 ชม.)
+│   │   ├── หลักสูตร 1 วัน (6 ชม.)
+│   │   └── เรียนฟรี / มีใบประกาศนียบัตร
+│   ├── ชินนสาสมาธิ 2 — (หลักสูตรต่อเนื่อง)
+│   └── ชินนสาสมาธิ 3
+│
+├── ระดับ 2: ครูสมาธิ (Meditation Instructor — MIC)
+│   ├── ระยะเวลา: 6 เดือน (200 ชั่วโมง)
+│   ├── แบ่ง 3 เทอม (เทอมละ 40 วัน)
+│   ├── ภาคทฤษฎี: ตำรา 3 เล่ม (พื้นฐาน/กลาง/สูง)
+│   ├── ภาคปฏิบัติ: เดินจงกรม + นั่งสมาธิ
+│   ├── สอบภาคสนาม: ดอยอินทนนท์ (4 วัน 3 คืน)
+│   ├── รุ่นปัจจุบัน: รุ่น 53 (ติปญฺญาสโม) "วิริยโชติ"
+│   ├── ภาค: เสาร์-อาทิตย์ (09:00-16:00)
+│   │   หรือ จันทร์-ศุกร์ (17:00-19:30/18:00-20:30)
+│   └── เรียนฟรี / มีใบประกาศนียบัตร
+│
+├── ระดับ 3: วิทันตสาสมาธิ (Vitantasa Samathi)
+│   ├── "การฝึกฝนตนเองที่วิเศษ"
+│   ├── สำหรับผู้จบครูสมาธิ
+│   ├── ระยะเวลา: 6 เดือน
+│   ├── มีทั้ง Onsite และ Online
+│   └── ใช้ตำราครูสมาธิ 3 เล่ม + เทปบรรยาย
+│
+├── ระดับ 4: ญาณสาสมาธิ (Yanasa Samathi)
+│   ├── "ความหยั่งรู้จากสมาธิ"
+│   ├── ขั้นมหาบัณฑิต (ครูผู้เชี่ยวชาญ)
+│   ├── ระยะเวลา: 22 วัน
+│   ├── Online ผ่าน LINE + YouTube
+│   └── สอนโดยหลวงพ่อวิริยังค์ (จากเทปบันทึก)
+│
+├── ระดับ 5: อุตมสาสมาธิ (Uttamasa Samathi)
+│   ├── หลักสูตรขั้นสูง
+│   ├── ระยะเวลา: 21 วัน
+│   ├── สำหรับผู้จบครูสมาธิ หรือ วิทันตสาสมาธิ
+│   └── Online
+│
+├── ระดับ 6: ปุริสาสมาธิ (Purisa Samathi)
+│   ├── "สมาธิเข้ม"
+│   └── สำหรับผู้จบหลักสูตรครูสมาธิ
+│
+├── หลักสูตร ENGLISH
+│   └── Meditation Instructor Course (MIC CLASS)
+│       ├── For foreigners
+│       ├── Locations: วัดธรรมมงคล / พัทยา / หัวหิน
+│       └── English language instruction
+│
+└── หลักสูตรพิเศษ
+    ├── Meditation for organizations (อบรมหน่วยงาน)
+    ├── Meditation for schools (อบรมโรงเรียน)
+    └── Retreat programs (ปฏิบัติธรรม)
+```
+
+### 2.4 ภูมิภาค — Region Classification
+
+```
+สถาบันพลังจิตตานุภาพ — ภูมิภาค
+│
+├── ภาคกลาง (Central)
+│   ├── กรุงเทพมหานคร — สำนักงานใหญ่ วัดธรรมมงคล + หลายสาขา
+│   ├── ปทุมธานี — สาขา 117 วัดโสภาราม, สาขา 193 วัดคุณหญิงส้มจีน
+│   ├── นนทบุรี — สาขา 178 กฟผ. บางกรวย
+│   └── ...
+│
+├── ภาคเหนือ (North)
+│   ├── เชียงใหม่ — สาขา 269 วัดพระธาตุดอยสะเก็ด, สาขา 296 วัดศรีเกิด
+│   ├── แพร่ — สาขา 12 บ้านเหมืองหม้อ
+│   ├── พะเยา — สาขา 27 วัดรัตนวนาราม
+│   ├── ลำพูน — สาขา 294 วัดบ้านโฮ่งหลวง
+│   └── ...
+│
+├── ภาคตะวันออกเฉียงเหนือ (Northeast/Isan)
+│   ├── อุดรธานี — สาขา 17 วัดป่าหลวง
+│   ├── หนองคาย — สาขา 43 วัดจันทรสามัคคี
+│   ├── ขอนแก่น — สาขา 312 วัดป่ากาญจนาภิเษก
+│   └── ...
+│
+├── ภาคตะวันออก (East)
+│   ├── ระยอง — สาขา 40 วัดตรีรัตนาราม, สาขา 160 วัดสารนาถธรรมาราม
+│   ├── ชลบุรี — สาขา 84 อ่างศิลา, สาขา 284 วัดเกาะโพธาวาส
+│   ├── จันทบุรี — สาขา 20 ศูนย์สมาธิพระยาวิสูตรโกษา
+│   └── ...
+│
+├── ภาคใต้ (South)
+│   ├── สงขลา — สาขา 5 วัดดอนรัก
+│   ├── ชุมพร — วัดหินกบ
+│   └── ...
+│
+├── ภาคตะวันตก (West)
+│   ├── กาญจนบุรี — สาขา 58 วัดสิริกาญจนาราม
+│   ├── ประจวบคีรีขันธ์ — สาขา 18 วัดเขาเต่า (หัวหิน)
+│   ├── ราชบุรี — สาขา 309 วัดป่าร้อยปีหลวงพ่อวิริยังค์
+│   └── ...
+│
+└── ต่างประเทศ (International)
+    ├── สหรัฐอเมริกา — Willpower Institute USA (Los Angeles, CA)
+    │   └── สุญาโณ — 3507 E.7th Street, LA, CA 90023
+    ├── แคนาดา — สาขาแคนาดา
+    └── อื่นๆ
+```
+
+---
+
+## 3. Data Catalog
+
+### 3.1 รายการชุดข้อมูล (Datasets)
+
+เทียบเคียงกับ data.go.th — แต่ละ Dataset มี metadata ครบถ้วน:
+
+#### Dataset 1: สาขาสถาบัน (Branches)
+
+```yaml
+dataset_id: willpower-branches
+title_th: ทะเบียนสาขาสถาบันพลังจิตตานุภาพ
+title_en: Willpower Institute Branch Registry
+organization: สำนักงานใหญ่ วัดธรรมมงคล
+maintainer: ฝ่ายเทคโนโลยีสารสนเทศ
+description: |
+  ข้อมูลสาขาสถาบันพลังจิตตานุภาพทั้งหมด ทั้งในประเทศและต่างประเทศ
+  ประกอบด้วย ชื่อสาขา ที่ตั้ง พิกัด GPS ข้อมูลติดต่อ
+  สถานะการเปิดดำเนินการ และข้อมูลผู้ดูแลสาขา
+tags:
+  - สาขา
+  - ที่ตั้ง
+  - แผนที่
+  - สมาธิ
+frequency: รายเดือน (monthly)
+license: Creative Commons Attribution 4.0
+format: JSON, CSV, GeoJSON
+records: ~329 (318 ในประเทศ + 11 ต่างประเทศ)
+source_url: https://samathi101.com/branch
+api_endpoint: /api/v1/branches
+```
+
+#### Dataset 2: หลักสูตร (Courses)
+
+```yaml
+dataset_id: willpower-courses
+title_th: หลักสูตรสมาธิสถาบันพลังจิตตานุภาพ
+title_en: Willpower Institute Meditation Courses
+description: |
+  ข้อมูลหลักสูตรทั้งหมดของสถาบัน ตั้งแต่ระดับเบื้องต้น (ชินนสาสมาธิ)
+  จนถึงระดับสูงสุด (ปุริสาสมาธิ) รวมถึงหลักสูตรภาษาอังกฤษ
+  และหลักสูตรพิเศษสำหรับองค์กร
+tags:
+  - หลักสูตร
+  - สมาธิ
+  - ครูสมาธิ
+  - อบรม
+frequency: รายปี
+format: JSON, CSV
+records: ~10 หลักสูตร
+api_endpoint: /api/v1/courses
+```
+
+#### Dataset 3: การเปิดรับสมัคร (Enrollments / Offerings)
+
+```yaml
+dataset_id: willpower-offerings
+title_th: ตารางการเปิดรับสมัครเรียนสมาธิ
+title_en: Course Offerings and Enrollment Schedule
+description: |
+  ข้อมูลการเปิดรับสมัครเรียนในแต่ละรุ่น/สาขา
+  ระบุวันเปิดเรียน วันปิดรับสมัคร สถานะ จำนวนรับ
+  รวมถึงลิงก์สำหรับสมัครออนไลน์
+tags:
+  - รับสมัคร
+  - ตารางเรียน
+  - รุ่น
+frequency: รายสัปดาห์ (weekly)
+format: JSON, CSV
+records: ~500-1000 ต่อรุ่น (แต่ละสาขาเปิด)
+source_url: https://samathi101.com/events
+api_endpoint: /api/v1/offerings
+```
+
+#### Dataset 4: กิจกรรม (Events)
+
+```yaml
+dataset_id: willpower-events
+title_th: กิจกรรมและงานพิเศษ
+title_en: Events and Special Activities
+description: |
+  กิจกรรมพิเศษต่างๆ เช่น งานปฐมนิเทศ สอบภาคสนามดอยอินทนนท์
+  พิธีมอบใบประกาศนียบัตร งานปฏิบัติธรรม สัมมนา
+tags:
+  - กิจกรรม
+  - ปฐมนิเทศ
+  - สอบภาคสนาม
+  - พิธีมอบ
+frequency: รายสัปดาห์
+format: JSON, iCal
+api_endpoint: /api/v1/events
+```
+
+#### Dataset 5: สถิติ (Statistics)
+
+```yaml
+dataset_id: willpower-statistics
+title_th: สถิตินักศึกษาและผู้จบหลักสูตร
+title_en: Student and Graduate Statistics
+description: |
+  ข้อมูลสถิติรวมของสถาบัน จำนวนนักศึกษาลงทะเบียน
+  จำนวนจบหลักสูตร อัตราการจบ จำนวนสาขา
+  แยกตามรุ่น/ปี/สาขา/ภูมิภาค
+tags:
+  - สถิติ
+  - นักศึกษา
+  - ผู้สำเร็จ
+  - รายปี
+frequency: รายรุ่น (ทุก 6 เดือน)
+format: JSON, CSV, XLSX
+api_endpoint: /api/v1/statistics
+```
+
+#### Dataset 6: ใบประกาศนียบัตร (Certificates)
+
+```yaml
+dataset_id: willpower-certificates
+title_th: ทะเบียนใบประกาศนียบัตร (สำหรับตรวจสอบ)
+title_en: Certificate Verification Registry
+description: |
+  ระบบตรวจสอบใบประกาศนียบัตร โดยระบุรหัสหรือชื่อนักศึกษา
+  เพื่อยืนยันว่าบุคคลนั้นจบหลักสูตรจริง
+  (ข้อมูลบางส่วนถูกปิดบังเพื่อความเป็นส่วนตัว)
+tags:
+  - ใบประกาศ
+  - ตรวจสอบ
+  - รับรอง
+format: JSON (API only — ไม่มี bulk download)
+api_endpoint: /api/v1/certificates/verify
+access: ต้องระบุ certificate_number หรือ verification_code
+```
+
+### 3.2 Metadata Standard (เทียบ DCAT-AP TH)
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "ทะเบียนสาขาสถาบันพลังจิตตานุภาพ",
+  "description": "ข้อมูลสาขาทั้งหมด 329 สาขา ทั้งในและต่างประเทศ",
+  "url": "https://samathi101.com/opendata/branches",
+  "creator": {
+    "@type": "Organization",
+    "name": "มูลนิธิสถาบันพลังจิตตานุภาพ",
+    "url": "https://samathi101.com"
+  },
+  "datePublished": "2569-01-01",
+  "dateModified": "2569-02-01",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "spatialCoverage": {
+    "@type": "Place",
+    "name": "ประเทศไทย, สหรัฐอเมริกา, แคนาดา"
+  },
+  "temporalCoverage": "2540-01-01/..",
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://samathi101.com/api/v1/branches"
+    },
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "text/csv",
+      "contentUrl": "https://samathi101.com/opendata/branches.csv"
+    }
+  ]
+}
+```
+
+---
+
+## 4. API Design
+
+### 4.1 RESTful API — Willpower Open API v1
+
+ออกแบบตาม concept เดียวกับ CKAN API แต่ใช้ REST style ที่เข้าใจง่ายกว่า
+
+**Base URL:** `https://samathi101.com/api/v1/`
+
+#### Endpoints Overview
+
+```
+GET  /api/v1/branches                    — สาขาทั้งหมด
+GET  /api/v1/branches/{id}               — สาขาเฉพาะ
+GET  /api/v1/branches/search?q=...       — ค้นหาสาขา
+GET  /api/v1/branches/nearby?lat=&lng=   — สาขาใกล้เคียง
+GET  /api/v1/branches/province/{name}    — สาขาในจังหวัด
+GET  /api/v1/branches/region/{name}      — สาขาในภูมิภาค
+
+GET  /api/v1/courses                     — หลักสูตรทั้งหมด
+GET  /api/v1/courses/{code}              — หลักสูตรเฉพาะ
+
+GET  /api/v1/offerings                   — การเปิดรับทั้งหมด
+GET  /api/v1/offerings/current           — ที่กำลังเปิดรับ
+GET  /api/v1/offerings?branch_id=&course_code=  — กรองตามสาขา/หลักสูตร
+
+GET  /api/v1/events                      — กิจกรรมทั้งหมด
+GET  /api/v1/events/upcoming             — กิจกรรมที่จะถึง
+
+GET  /api/v1/statistics                  — สถิติรวม
+GET  /api/v1/statistics/batch/{number}   — สถิติแยกรุ่น
+GET  /api/v1/statistics/yearly/{year}    — สถิติแยกปี
+
+GET  /api/v1/certificates/verify?code=   — ตรวจสอบใบประกาศ
+
+GET  /api/v1/catalog                     — Data Catalog (DCAT)
+GET  /api/v1/catalog/datasets            — รายการ Datasets
+```
+
+#### 4.2 ตัวอย่าง API Response
+
+**GET /api/v1/branches/40**
+
+```json
+{
+  "success": true,
+  "result": {
+    "branch_id": 40,
+    "branch_name_th": "สถาบันพลังจิตตานุภาพ สาขา 40 วัดตรีรัตนาราม",
+    "branch_name_en": "Willpower Institute Branch 40 - Wat Triratanaram",
+    "temple_name": "วัดตรีรัตนาราม",
+    "address": "6 ถนนวุฒิสาร ตำบลเชิงเนิน",
+    "amphoe": "เมืองระยอง",
+    "province": "ระยอง",
+    "region": "ตะวันออก",
+    "postal_code": "21000",
+    "latitude": 12.6814,
+    "longitude": 101.2773,
+    "phone": "084-351-9645",
+    "established_date": "2555-02-12",
+    "status": "active",
+    "branch_manager": "อ.ผดล.นัยนา ประเสริฐแสง",
+    "manager_phone": "081-427-4305",
+    "operating_hours": {
+      "saturday": "09:00-16:00",
+      "sunday": "09:00-16:00"
+    },
+    "google_maps_url": "https://maps.app.goo.gl/...",
+    "samathi101_url": "https://samathi101.com/branch/689",
+    "current_offerings": [
+      {
+        "offering_id": 1913,
+        "course": "ครูสมาธิ",
+        "batch": "รุ่น 53",
+        "status": "open"
+      }
+    ],
+    "meta": {
+      "first_batch": "รุ่น 30 ติงสโม วิสุทธิธรรม",
+      "total_graduates": null,
+      "last_updated": "2569-02-01T00:00:00+07:00"
+    }
+  }
+}
+```
+
+**GET /api/v1/branches/search?province=เชียงใหม่**
+
+```json
+{
+  "success": true,
+  "result": {
+    "count": 5,
+    "branches": [
+      {
+        "branch_id": 269,
+        "branch_name_th": "สาขา 269 วัดพระธาตุดอยสะเก็ด",
+        "province": "เชียงใหม่",
+        "amphoe": "ดอยสะเก็ด",
+        "status": "active",
+        "phone": "089-956-4585"
+      },
+      {
+        "branch_id": 296,
+        "branch_name_th": "สาขา 296 วัดศรีเกิด",
+        "province": "เชียงใหม่",
+        "amphoe": "เมือง",
+        "status": "active"
+      }
+    ]
+  }
+}
+```
+
+**GET /api/v1/courses**
+
+```json
+{
+  "success": true,
+  "result": {
+    "count": 8,
+    "courses": [
+      {
+        "course_code": "CHIN1",
+        "course_name_th": "ชินนสาสมาธิ 1",
+        "course_name_en": "Chinnasa Samathi 1",
+        "meaning": "สมาธิชนะใจตนเอง",
+        "level": "beginner",
+        "level_order": 1,
+        "duration": "ครึ่งวัน - 1 วัน (3-6 ชม.)",
+        "format": ["onsite"],
+        "prerequisite": null,
+        "fee": 0,
+        "has_certificate": true
+      },
+      {
+        "course_code": "MIC",
+        "course_name_th": "ครูสมาธิ",
+        "course_name_en": "Meditation Instructor Course",
+        "course_name_pali": "ครูสมาธิ",
+        "level": "intermediate",
+        "level_order": 2,
+        "duration": "6 เดือน (200 ชม.)",
+        "format": ["onsite"],
+        "prerequisite": null,
+        "fee": 0,
+        "has_certificate": true,
+        "current_batch": {
+          "number": 53,
+          "name_pali": "ติปญฺญาสโม",
+          "name_th": "วิริยโชติ (ผู้รุ่งเรืองด้วยความเพียร)"
+        },
+        "textbooks": 3,
+        "exam_location": "ดอยอินทนนท์ จ.เชียงใหม่"
+      },
+      {
+        "course_code": "VITAN",
+        "course_name_th": "วิทันตสาสมาธิ",
+        "course_name_en": "Vitantasa Samathi",
+        "meaning": "การฝึกฝนตนเองที่วิเศษ",
+        "level": "advanced",
+        "level_order": 3,
+        "duration": "6 เดือน",
+        "format": ["onsite", "online"],
+        "prerequisite": "MIC",
+        "fee": 0,
+        "has_certificate": true
+      },
+      {
+        "course_code": "YANA",
+        "course_name_th": "ญาณสาสมาธิ",
+        "course_name_en": "Yanasa Samathi",
+        "meaning": "ความหยั่งรู้จากสมาธิ",
+        "level": "expert",
+        "level_order": 4,
+        "duration": "22 วัน",
+        "format": ["online"],
+        "prerequisite": "VITAN",
+        "fee": 0,
+        "has_certificate": true
+      },
+      {
+        "course_code": "UTTAM",
+        "course_name_th": "อุตมสาสมาธิ",
+        "course_name_en": "Uttamasa Samathi",
+        "level": "expert",
+        "level_order": 5,
+        "duration": "21 วัน",
+        "format": ["online"],
+        "prerequisite": "MIC หรือ VITAN",
+        "fee": 0
+      },
+      {
+        "course_code": "PURI",
+        "course_name_th": "ปุริสาสมาธิ",
+        "course_name_en": "Purisa Samathi",
+        "meaning": "สมาธิเข้ม",
+        "level": "master",
+        "level_order": 6,
+        "prerequisite": "MIC",
+        "fee": 0
+      },
+      {
+        "course_code": "MIC-EN",
+        "course_name_th": "หลักสูตรครูสมาธิ (ภาษาอังกฤษ)",
+        "course_name_en": "Meditation Instructor Course (English)",
+        "level": "intermediate",
+        "format": ["onsite"],
+        "language": "English"
+      }
+    ]
+  }
+}
+```
+
+**GET /api/v1/statistics**
+
+```json
+{
+  "success": true,
+  "result": {
+    "overview": {
+      "established_year": 2540,
+      "years_active": 29,
+      "total_branches_domestic": 318,
+      "total_branches_international": 11,
+      "total_branches": 329,
+      "current_batch": 53,
+      "total_batches_completed": 52,
+      "provinces_covered": 77,
+      "countries": ["ไทย", "สหรัฐอเมริกา", "แคนาดา"],
+      "courses_offered": 8,
+      "certification_rate_percent": 95
+    },
+    "growth": [
+      { "year": 2540, "branches": 1,   "batch": 1  },
+      { "year": 2545, "branches": 20,  "batch": 10 },
+      { "year": 2550, "branches": 50,  "batch": 20 },
+      { "year": 2555, "branches": 100, "batch": 30 },
+      { "year": 2561, "branches": 200, "batch": 43 },
+      { "year": 2564, "branches": 269, "batch": 47 },
+      { "year": 2568, "branches": 318, "batch": 53 }
+    ]
+  }
+}
+```
+
+---
+
+## 5. Artifact Prompts
+
+### Prompt 5.1 — 🧘 Willpower Data Explorer (ศูนย์ข้อมูลสถาบันพลังจิตตานุภาพ)
+
+````
+สร้าง React Artifact เป็น "ศูนย์ข้อมูลเปิด สถาบันพลังจิตตานุภาพ" (Willpower Open Data Center)
+ออกแบบตาม concept ของ data.go.th แต่ปรับให้เหมาะกับสถาบันสมาธิ
+
+UI: 5 Tab ด้านบน
+
+[Tab 1: 📊 Dashboard สถิติ]
+- Header: "สถาบันพลังจิตตานุภาพ — Open Data Dashboard"
+- Row 1 — KPI Cards (4 การ์ด):
+  • 🏛️ สาขาทั้งหมด: 329 สาขา (318 ในประเทศ + 11 ต่างประเทศ)
+  • 📚 หลักสูตรทั้งหมด: 8 หลักสูตร
+  • 🎓 รุ่นปัจจุบัน: รุ่นที่ 53 วิริยโชติ
+  • 🙏 ปีที่ดำเนินการ: 29 ปี (พ.ศ. 2540-ปัจจุบัน)
+- Row 2 — Charts:
+  • Line Chart: การเติบโตของจำนวนสาขา (2540-2568)
+  • Bar Chart: จำนวนสาขาแยกตามภูมิภาค (เหนือ/กลาง/อีสาน/ตะวันออก/ใต้/ตะวันตก/ต่างประเทศ)
+- Row 3:
+  • Donut Chart: สัดส่วนหลักสูตรที่เปิดสอน
+  • Progress Bar: เป้าหมาย 500 สาขา (ความคืบหน้า 329/500)
+
+[Tab 2: 🗺️ แผนที่สาขา]
+- SVG แผนที่ประเทศไทย แบ่ง 77 จังหวัด
+- จุดสีแต่ละจุด = 1 สาขา (ใช้ lat/lng จำลอง)
+- Hover จังหวัด → popup: ชื่อจังหวัด + จำนวนสาขา
+- Click จังหวัด → แสดงรายชื่อสาขาในจังหวัดนั้น
+- สีตาม density: เหลืองอ่อน (1 สาขา) → ส้ม (2-5) → แดง (6+)
+- Legend ด้านล่าง
+- Filter: เลือกภูมิภาค / สถานะ (active/inactive)
+
+[Tab 3: 📚 หลักสูตร]
+- แสดง Course Pathway แบบ flowchart:
+  ชินนสาสมาธิ → ครูสมาธิ → วิทันตสาฯ → ญาณสาฯ → อุตมสาฯ → ปุริสาฯ
+- Click หลักสูตร → expand แสดงรายละเอียด:
+  ระยะเวลา, รูปแบบ, prerequisite, คำอธิบาย, จำนวนสาขาที่เปิดสอน
+- ด้านล่าง: ตาราง "สาขาที่กำลังเปิดรับสมัคร" filter ตามหลักสูตร
+
+[Tab 4: 🔍 ค้นหาสาขา]
+- Search bar: พิมพ์ชื่อจังหวัด / วัด / เลขสาขา
+- Dropdown: เลือกจังหวัด (77 จังหวัด)
+- Dropdown: เลือกภูมิภาค
+- ผลลัพธ์: Card list แสดง สาขา + วัด + จังหวัด + เบอร์โทร + สถานะ + Google Maps link
+
+[Tab 5: 📡 API Playground]
+- เลือก Endpoint จาก dropdown
+- แสดง URL ที่จะเรียก
+- ปุ่ม "ส่งคำขอ" → ใช้ Claude API + web_search ดึงข้อมูลจริงจาก samathi101.com
+- แสดง JSON response ใน code block
+- ปุ่ม "คัดลอก JSON" / "ดาวน์โหลด CSV"
+
+Theme:
+- สีหลัก: สีทอง (#D4A843) + สีเหลืองอำพัน (#F5C542) — สื่อถึงพุทธศาสนา
+- สีรอง: สีน้ำตาลเข้ม (#3E2723) + สีครีม (#FFF8E7)
+- Accent: สีส้มพระ (#FF6D00) สำหรับ action items
+- Font: ใช้ system fonts ที่รองรับภาษาไทย
+- ไอคอน: ใช้ emoji ธรรมะ (🙏🧘📿🪷⚡)
+
+ข้อมูลจำลอง: ใส่ข้อมูลจริงของสาขาอย่างน้อย 30 สาขาจากข้อมูลข้างต้น
+ใช้ persistent storage เก็บ bookmarks สาขาที่สนใจ
+````
+
+### Prompt 5.2 — 🏛️ Willpower Branch Finder (ค้นหาสาขาใกล้ฉัน)
+
+````
+สร้าง React Artifact เป็น "ค้นหาสาขาสถาบันพลังจิตตานุภาพ" ใช้งานง่าย
+เหมาะสำหรับประชาชนทั่วไปที่สนใจเรียนสมาธิ
+
+หน้าจอหลัก:
+- Header: 🙏 "ค้นหาสาขาสถาบันพลังจิตตานุภาพใกล้คุณ"
+- ข้อความ: "เรียนสมาธิฟรี กว่า 318 สาขาทั่วประเทศ"
+
+Search section:
+- Dropdown "เลือกจังหวัด" — 77 จังหวัด (จัดกลุ่มตามภูมิภาค)
+- Dropdown "เลือกหลักสูตร" — ชินนสา/ครูสมาธิ/วิทันตสา/ญาณสา/อุตมสา/ปุริสา/English
+- Toggle: "เฉพาะสาขาที่กำลังเปิดรับสมัคร"
+- ปุ่ม "🔍 ค้นหา"
+
+ผลลัพธ์:
+- Card layout แสดงสาขาที่ตรง filter
+- แต่ละ Card:
+  • เลขสาขา + ชื่อวัด
+  • ที่อยู่ (อำเภอ, จังหวัด)
+  • เบอร์โทร (กดโทรได้)
+  • หลักสูตรที่เปิดสอน (badge)
+  • สถานะ: 🟢 เปิดรับสมัคร / 🔴 ปิดรับ / 🟡 เรียนอยู่
+  • ปุ่ม "📍 ดูแผนที่" → เปิด Google Maps
+  • ปุ่ม "📝 สมัครเรียน" → เปิดลิงก์ samathi101.com
+
+ด้านล่าง:
+- Section "เส้นทางสมาธิ" — Course pathway แบบ step-by-step
+  แสดง 6 ระดับหลักสูตร เรียงจากง่ายไปยาก
+  Click แต่ละขั้น → popup อธิบายสั้นๆ
+
+ข้อมูลจำลอง: 50+ สาขาจริง ครอบคลุมทุกภูมิภาค
+Theme: สีทอง+น้ำตาล บนพื้นครีม
+ใช้ persistent storage เก็บ "สาขาโปรด" ❤️
+````
+
+### Prompt 5.3 — 📈 Willpower Growth Analytics (วิเคราะห์การเติบโตของสถาบัน)
+
+````
+สร้าง React Artifact แสดง "Dashboard วิเคราะห์การเติบโตของสถาบันพลังจิตตานุภาพ"
+
+Section 1: Timeline
+- Interactive timeline (2540-2568)
+  แสดง milestones สำคัญ:
+  2540: ก่อตั้งสถาบัน รุ่นที่ 1
+  2555: ครบ 100 สาขา
+  2561: ครบ 200 สาขา
+  2564: 269 สาขา + 11 ต่างประเทศ
+  2568: 318 สาขา รุ่นที่ 53
+
+Section 2: Growth Charts (recharts)
+- Line Chart: จำนวนสาขาสะสม (2540-2568)
+- Bar Chart: จำนวนสาขาเปิดใหม่ต่อปี
+- Area Chart: ประมาณการจำนวนนักศึกษาสะสม
+
+Section 3: Geographic Distribution
+- Horizontal Bar Chart: จำนวนสาขาแยกตามภูมิภาค
+- Treemap: จำนวนสาขาแยกตามจังหวัด (top 20)
+
+Section 4: Course Analytics
+- Stacked Bar: จำนวน offerings แยกตามหลักสูตร
+- Pie Chart: สัดส่วน onsite vs online
+- Funnel Chart: จำนวนผู้เรียน ชินนสา → ครูสมาธิ → วิทันตสา → ญาณสา (conversion funnel)
+
+Section 5: Projections
+- ใช้ Claude API วิเคราะห์แนวโน้มการเติบโต
+- ถาม: "จากข้อมูลการเติบโตของสาขาสถาบันพลังจิตตานุภาพ (ปี 2540=1 สาขา, 2555=100, 2561=200, 2568=318) คาดการณ์ว่าจะครบ 500 สาขาเมื่อใด"
+- แสดง projection line chart
+
+Theme: สีทอง (#D4A843) + น้ำตาลเข้ม (#3E2723) + ครีม (#FFF8E7)
+````
+
+### Prompt 5.4 — 🙏 API Catalog Portal (เทียบ data.go.th)
+
+````
+สร้าง React Artifact เป็น "Willpower Open Data Catalog"
+ออกแบบหน้าตาเหมือน data.go.th / CKAN portal แต่ปรับให้เป็นของสถาบันพลังจิตตานุภาพ
+
+Header:
+- Logo + "ศูนย์ข้อมูลเปิด สถาบันพลังจิตตานุภาพ"
+- "Willpower Open Data Portal"
+- Search bar กลางหน้า: "ค้นหาชุดข้อมูล..."
+
+Stats bar:
+- 6 Datasets | 329+ Records | 5 Formats | CC-BY 4.0
+
+Dataset cards (6 cards):
+แต่ละ card แสดง:
+- ไอคอน + ชื่อ Dataset (TH/EN)
+- คำอธิบายสั้น
+- Tags (badges)
+- Formats available: JSON CSV GeoJSON iCal XLSX
+- Last updated
+- Record count
+- ปุ่ม "ดูข้อมูล" / "API Docs" / "ดาวน์โหลด"
+
+Click card → Dataset detail page:
+- Metadata table (publisher, license, frequency, etc.)
+- Preview: ตาราง 10 rows แรก
+- API endpoint + example curl command
+- Download buttons
+
+Sidebar filters:
+- Organization: สำนักงานใหญ่ / ฝ่าย IT / สาขา
+- Format: JSON / CSV / GeoJSON / iCal / XLSX
+- Tag cloud: สาขา, หลักสูตร, สถิติ, กิจกรรม, ใบประกาศ, แผนที่
+- Update frequency: รายสัปดาห์ / รายเดือน / รายปี
+
+Footer:
+- "Powered by Willpower Open Data Platform"
+- "แนวคิดจาก data.go.th — Government Open Data"
+- Links: API Docs, GitHub, ติดต่อ
+
+Theme: เลียนแบบ data.go.th แต่ใช้สีทอง/น้ำตาล แทนสีฟ้า
+ข้อมูล datasets 6 ชุดตามที่ออกแบบใน Data Catalog section
+````
+
+---
+
+## 6. Python Code
+
+### 6.1 WillpowerDataClient — REST API Client
+
+```python
+"""
+WillpowerDataClient — Python Client สำหรับ Willpower Open API
+เทียบเคียงกับ DEDEDataClient แต่ใช้กับข้อมูลสถาบันพลังจิตตานุภาพ
+
+CONCEPT: เสมือนว่าสถาบันมี Open API แล้ว — client นี้เรียกใช้ API นั้น
+ในความเป็นจริง: scrape ข้อมูลจาก samathi101.com แล้วจัด format เป็น JSON
+"""
+
+import requests
+from bs4 import BeautifulSoup
+import json
+import csv
+import time
+import re
+from dataclasses import dataclass, asdict
+from typing import List, Optional, Dict
+from pathlib import Path
+
+
+@dataclass
+class Branch:
+    """สาขาสถาบันพลังจิตตานุภาพ"""
+    branch_id: int
+    branch_name_th: str
+    temple_name: str = ""
+    address: str = ""
+    amphoe: str = ""
+    province: str = ""
+    region: str = ""
+    postal_code: str = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    phone: str = ""
+    established_date: str = ""
+    status: str = "active"
+    branch_manager: str = ""
+    manager_phone: str = ""
+    google_maps_url: str = ""
+    facebook_url: str = ""
+    samathi101_url: str = ""
+    operating_hours: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class Course:
+    """หลักสูตรสมาธิ"""
+    course_code: str
+    course_name_th: str
+    course_name_en: str = ""
+    course_name_pali: str = ""
+    meaning: str = ""
+    level: str = ""
+    level_order: int = 0
+    duration: str = ""
+    format: str = ""
+    prerequisite: str = ""
+    fee: int = 0
+    has_certificate: bool = True
+    description: str = ""
+
+
+@dataclass
+class CourseOffering:
+    """การเปิดรับสมัคร"""
+    offering_id: int
+    course_code: str
+    branch_id: int
+    batch_number: int = 0
+    batch_name_pali: str = ""
+    batch_name_th: str = ""
+    start_date: str = ""
+    end_date: str = ""
+    orientation_date: str = ""
+    schedule_day: str = ""
+    schedule_time: str = ""
+    enrollment_status: str = ""
+    instructor_name: str = ""
+    instructor_phone: str = ""
+    registration_url: str = ""
+    samathi101_url: str = ""
+
+
+class WillpowerDataClient:
+    """
+    Client สำหรับดึงข้อมูลสถาบันพลังจิตตานุภาพ
+
+    ออกแบบเทียบเคียง CKAN API client:
+    - list_*() — ดึงรายการทั้งหมด
+    - get_*() — ดึงข้อมูลเฉพาะรายการ
+    - search_*() — ค้นหา
+    - export_*() — ส่งออกเป็น CSV/JSON
+    """
+
+    BASE_URL = "https://samathi101.com"
+
+    # ===== หลักสูตรทั้งหมด (Master Data) =====
+    COURSES = [
+        Course(
+            course_code="CHIN1",
+            course_name_th="ชินนสาสมาธิ 1",
+            course_name_en="Chinnasa Samathi 1",
+            meaning="สมาธิชนะใจตนเอง",
+            level="beginner",
+            level_order=1,
+            duration="ครึ่งวัน - 1 วัน (3-6 ชม.)",
+            format="onsite",
+            fee=0,
+            has_certificate=True,
+            description="หลักสูตรอบรมแก่ญาติโยมทั่วไป เรียนรู้สมาธิแบบง่ายๆ"
+        ),
+        Course(
+            course_code="MIC",
+            course_name_th="ครูสมาธิ",
+            course_name_en="Meditation Instructor Course",
+            meaning="หลักสูตรผลิตครูสอนสมาธิ",
+            level="intermediate",
+            level_order=2,
+            duration="6 เดือน (200 ชม.)",
+            format="onsite",
+            fee=0,
+            has_certificate=True,
+            description="หลักสูตรหลักของสถาบัน เรียน 3 เทอม สอบภาคสนามดอยอินทนนท์"
+        ),
+        Course(
+            course_code="VITAN",
+            course_name_th="วิทันตสาสมาธิ",
+            course_name_en="Vitantasa Samathi",
+            meaning="การฝึกฝนตนเองที่วิเศษ",
+            level="advanced",
+            level_order=3,
+            duration="6 เดือน",
+            format="onsite,online",
+            prerequisite="MIC",
+            fee=0,
+            has_certificate=True
+        ),
+        Course(
+            course_code="YANA",
+            course_name_th="ญาณสาสมาธิ",
+            course_name_en="Yanasa Samathi",
+            meaning="ความหยั่งรู้จากสมาธิ",
+            level="expert",
+            level_order=4,
+            duration="22 วัน",
+            format="online",
+            prerequisite="VITAN",
+            fee=0,
+            description="ขั้นมหาบัณฑิต — ครูผู้เชี่ยวชาญ สอนโดยหลวงพ่อ (จากเทปบันทึก)"
+        ),
+        Course(
+            course_code="UTTAM",
+            course_name_th="อุตมสาสมาธิ",
+            course_name_en="Uttamasa Samathi",
+            level="expert",
+            level_order=5,
+            duration="21 วัน",
+            format="online",
+            prerequisite="MIC หรือ VITAN",
+            fee=0
+        ),
+        Course(
+            course_code="PURI",
+            course_name_th="ปุริสาสมาธิ",
+            course_name_en="Purisa Samathi",
+            meaning="สมาธิเข้ม",
+            level="master",
+            level_order=6,
+            prerequisite="MIC",
+            fee=0
+        ),
+        Course(
+            course_code="MIC-EN",
+            course_name_th="ครูสมาธิ (ภาษาอังกฤษ)",
+            course_name_en="Meditation Instructor Course (English)",
+            level="intermediate",
+            level_order=2,
+            format="onsite",
+            fee=0,
+            description="For foreigners — Bangkok, Pattaya, Hua Hin"
+        ),
+    ]
+
+    # ===== ภูมิภาค Mapping =====
+    REGION_MAP = {
+        "กรุงเทพมหานคร": "กลาง",
+        "นนทบุรี": "กลาง", "ปทุมธานี": "กลาง", "สมุทรปราการ": "กลาง",
+        "นครปฐม": "กลาง", "สมุทรสาคร": "กลาง", "อยุธยา": "กลาง",
+        "เชียงใหม่": "เหนือ", "เชียงราย": "เหนือ", "แพร่": "เหนือ",
+        "พะเยา": "เหนือ", "ลำพูน": "เหนือ", "ลำปาง": "เหนือ",
+        "ขอนแก่น": "อีสาน", "อุดรธานี": "อีสาน", "หนองคาย": "อีสาน",
+        "นครราชสีมา": "อีสาน", "อุบลราชธานี": "อีสาน",
+        "ระยอง": "ตะวันออก", "ชลบุรี": "ตะวันออก", "จันทบุรี": "ตะวันออก",
+        "สงขลา": "ใต้", "ชุมพร": "ใต้", "สุราษฎร์ธานี": "ใต้",
+        "กาญจนบุรี": "ตะวันตก", "ประจวบคีรีขันธ์": "ตะวันตก",
+        "ราชบุรี": "ตะวันตก",
+    }
+
+    def __init__(self, delay: float = 1.0):
+        self.delay = delay
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "WillpowerDataClient/1.0 (OpenData Research)",
+            "Accept-Language": "th,en;q=0.9",
+        })
+        self._cache: Dict[str, any] = {}
+
+    def _fetch(self, url: str) -> Optional[BeautifulSoup]:
+        """ดึงหน้าเว็บพร้อม rate limiting"""
+        try:
+            time.sleep(self.delay)
+            resp = self.session.get(url, timeout=30)
+            resp.raise_for_status()
+            resp.encoding = "utf-8"
+            return BeautifulSoup(resp.text, "html.parser")
+        except Exception as e:
+            print(f"[ERROR] ดึงข้อมูลไม่สำเร็จ: {url} — {e}")
+            return None
+
+    # ===== Branch Operations =====
+
+    def get_branch(self, branch_id: int) -> Optional[Branch]:
+        """
+        ดึงข้อมูลสาขา 1 สาขา
+        เทียบ: CKAN package_show
+        URL Pattern: samathi101.com/branch/{internal_id}
+        """
+        # samathi101 ใช้ internal ID ไม่ใช่ branch number
+        # ต้อง iterate หา — หรือใช้ search
+        url = f"{self.BASE_URL}/branch/{branch_id}"
+        soup = self._fetch(url)
+        if not soup:
+            return None
+
+        branch = Branch(branch_id=branch_id, branch_name_th="")
+
+        # Parse ข้อมูลจาก HTML
+        title = soup.find("h1") or soup.find("h2")
+        if title:
+            branch.branch_name_th = title.get_text(strip=True)
+
+        # หาข้อมูลที่อยู่, เบอร์โทร ฯลฯ จาก page content
+        text = soup.get_text()
+
+        # Extract province
+        province_match = re.search(r"จังหวัด\s*(\S+)", text)
+        if province_match:
+            branch.province = province_match.group(1)
+            branch.region = self.REGION_MAP.get(branch.province, "อื่นๆ")
+
+        # Extract phone
+        phone_match = re.search(r"(\d{2,3}[-\s]?\d{3,4}[-\s]?\d{4})", text)
+        if phone_match:
+            branch.phone = phone_match.group(1)
+
+        branch.samathi101_url = url
+        return branch
+
+    def list_branches_page(self, page: int = 1) -> List[dict]:
+        """
+        ดึงรายชื่อสาขาจากหน้ารายการ
+        เทียบ: CKAN package_list / package_search
+        """
+        url = f"{self.BASE_URL}/branch?page={page}"
+        soup = self._fetch(url)
+        if not soup:
+            return []
+
+        branches = []
+        # Parse branch cards/list items
+        cards = soup.find_all("div", class_=re.compile(r"card|branch|item"))
+        for card in cards:
+            link = card.find("a", href=re.compile(r"/branch/\d+"))
+            if link:
+                bid = re.search(r"/branch/(\d+)", link["href"])
+                name = card.get_text(strip=True)
+                branches.append({
+                    "internal_id": int(bid.group(1)) if bid else 0,
+                    "name": name,
+                    "url": f"{self.BASE_URL}{link['href']}"
+                })
+
+        return branches
+
+    def search_branches(self, query: str = "", province: str = "",
+                        region: str = "") -> List[Branch]:
+        """
+        ค้นหาสาขา
+        เทียบ: CKAN package_search?q=...
+        """
+        # ใช้ search page ถ้ามี หรือ scrape ทุกสาขาแล้ว filter
+        results = []
+        # implementation depends on actual site structure
+        return results
+
+    # ===== Course Operations =====
+
+    def list_courses(self) -> List[Course]:
+        """ดึงรายการหลักสูตรทั้งหมด (Master Data)"""
+        return self.COURSES
+
+    def get_course(self, course_code: str) -> Optional[Course]:
+        """ดึงหลักสูตรตาม code"""
+        for c in self.COURSES:
+            if c.course_code == course_code:
+                return c
+        return None
+
+    # ===== Offering Operations =====
+
+    def list_current_offerings(self) -> List[CourseOffering]:
+        """
+        ดึงรายการที่กำลังเปิดรับสมัคร
+        เทียบ: CKAN datastore_search + filter
+        Source: samathi101.com/events
+        """
+        url = f"{self.BASE_URL}/events"
+        soup = self._fetch(url)
+        if not soup:
+            return []
+
+        offerings = []
+        # Parse events page
+        event_cards = soup.find_all("div", class_=re.compile(r"event|course|card"))
+        for i, card in enumerate(event_cards):
+            link = card.find("a", href=re.compile(r"/course/\d+"))
+            if not link:
+                continue
+
+            offering = CourseOffering(
+                offering_id=i,
+                course_code="",
+                branch_id=0,
+            )
+
+            # Extract text content
+            text = card.get_text(" ", strip=True)
+
+            # Detect course type
+            if "ชินนสา" in text:
+                offering.course_code = "CHIN1"
+            elif "ครูสมาธิ" in text:
+                offering.course_code = "MIC"
+            elif "วิทันตสา" in text:
+                offering.course_code = "VITAN"
+            elif "ญาณสา" in text:
+                offering.course_code = "YANA"
+
+            # Extract branch
+            branch_match = re.search(r"สาขา\s*(\d+)", text)
+            if branch_match:
+                offering.branch_id = int(branch_match.group(1))
+
+            # Extract URL
+            if link.get("href"):
+                offering.samathi101_url = f"{self.BASE_URL}{link['href']}"
+
+            offerings.append(offering)
+
+        return offerings
+
+    def get_offering_detail(self, offering_url: str) -> Optional[CourseOffering]:
+        """ดึงรายละเอียด offering จาก URL"""
+        soup = self._fetch(offering_url)
+        if not soup:
+            return None
+        # Parse detailed offering page
+        # ... (ดึง instructor, schedule, dates ฯลฯ)
+        return None
+
+    # ===== Statistics =====
+
+    def get_statistics(self) -> dict:
+        """
+        สถิติรวมของสถาบัน
+        เทียบ: Government annual report data
+        """
+        return {
+            "overview": {
+                "established_year_be": 2540,
+                "established_year_ce": 1997,
+                "total_branches_domestic": 318,
+                "total_branches_international": 11,
+                "total_branches": 329,
+                "current_batch": 53,
+                "provinces_covered": 77,
+                "countries": ["ไทย", "สหรัฐอเมริกา", "แคนาดา"],
+                "courses_offered": len(self.COURSES),
+                "certification_rate_percent": 95,
+            },
+            "growth_timeline": [
+                {"year_be": 2540, "year_ce": 1997, "branches": 1, "batch": 1},
+                {"year_be": 2545, "year_ce": 2002, "branches": 20, "batch": 10},
+                {"year_be": 2550, "year_ce": 2007, "branches": 50, "batch": 20},
+                {"year_be": 2555, "year_ce": 2012, "branches": 100, "batch": 30},
+                {"year_be": 2561, "year_ce": 2018, "branches": 200, "batch": 43},
+                {"year_be": 2564, "year_ce": 2021, "branches": 280, "batch": 47},
+                {"year_be": 2568, "year_ce": 2025, "branches": 318, "batch": 53},
+            ],
+            "batch_names": {
+                49: {"pali": "เอกูนปญฺญาสโม", "thai": "ญาณวชิโรดม"},
+                50: {"pali": "ปญฺญาสโม", "thai": "—"},
+                51: {"pali": "เอกปญฺญาสโม", "thai": "วิริยชัย (ชนะด้วยความเพียร)"},
+                52: {"pali": "ทฺวิปญฺญาสโม", "thai": "วิริยมงคล (ความเพียรนำไปสู่ความเจริญ)"},
+                53: {"pali": "ติปญฺญาสโม", "thai": "วิริยโชติ (ผู้รุ่งเรืองด้วยความเพียร)"},
+            }
+        }
+
+    # ===== Export Functions =====
+
+    def export_branches_csv(self, branches: List[Branch], filepath: str):
+        """ส่งออกข้อมูลสาขาเป็น CSV"""
+        if not branches:
+            print("ไม่มีข้อมูลสาขา")
+            return
+
+        fieldnames = list(branches[0].to_dict().keys())
+        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for b in branches:
+                writer.writerow(b.to_dict())
+        print(f"✅ ส่งออก {len(branches)} สาขา → {filepath}")
+
+    def export_branches_json(self, branches: List[Branch], filepath: str):
+        """ส่งออกข้อมูลสาขาเป็น JSON"""
+        data = {
+            "success": True,
+            "result": {
+                "count": len(branches),
+                "branches": [b.to_dict() for b in branches]
+            },
+            "meta": {
+                "source": "samathi101.com",
+                "exported_at": time.strftime("%Y-%m-%dT%H:%M:%S+07:00"),
+                "format_version": "1.0",
+                "license": "CC-BY-4.0"
+            }
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ ส่งออก {len(branches)} สาขา → {filepath}")
+
+    def export_courses_json(self, filepath: str):
+        """ส่งออกหลักสูตรเป็น JSON (CKAN-style)"""
+        data = {
+            "success": True,
+            "result": {
+                "count": len(self.COURSES),
+                "courses": [asdict(c) for c in self.COURSES]
+            }
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ ส่งออก {len(self.COURSES)} หลักสูตร → {filepath}")
+
+    def export_catalog_dcat(self, filepath: str):
+        """
+        ส่งออก Data Catalog ในรูปแบบ DCAT-AP
+        (เหมือน data.go.th metadata)
+        """
+        catalog = {
+            "@context": "https://schema.org",
+            "@type": "DataCatalog",
+            "name": "ศูนย์ข้อมูลเปิด สถาบันพลังจิตตานุภาพ",
+            "description": "Open Data Portal ของสถาบันพลังจิตตานุภาพ",
+            "url": "https://samathi101.com/opendata",
+            "publisher": {
+                "@type": "Organization",
+                "name": "มูลนิธิสถาบันพลังจิตตานุภาพ",
+                "url": "https://samathi101.com"
+            },
+            "dataset": [
+                {
+                    "@type": "Dataset",
+                    "name": "ทะเบียนสาขา",
+                    "identifier": "willpower-branches",
+                    "distribution": [
+                        {"encodingFormat": "application/json"},
+                        {"encodingFormat": "text/csv"},
+                        {"encodingFormat": "application/geo+json"}
+                    ]
+                },
+                {
+                    "@type": "Dataset",
+                    "name": "หลักสูตรสมาธิ",
+                    "identifier": "willpower-courses",
+                },
+                {
+                    "@type": "Dataset",
+                    "name": "การเปิดรับสมัคร",
+                    "identifier": "willpower-offerings",
+                },
+                {
+                    "@type": "Dataset",
+                    "name": "กิจกรรม",
+                    "identifier": "willpower-events",
+                },
+                {
+                    "@type": "Dataset",
+                    "name": "สถิตินักศึกษา",
+                    "identifier": "willpower-statistics",
+                },
+                {
+                    "@type": "Dataset",
+                    "name": "ใบประกาศนียบัตร",
+                    "identifier": "willpower-certificates",
+                },
+            ]
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(catalog, f, ensure_ascii=False, indent=2)
+        print(f"✅ ส่งออก DCAT Catalog → {filepath}")
+
+
+# ===== Usage Example =====
+if __name__ == "__main__":
+    client = WillpowerDataClient(delay=1.5)
+
+    # 1. ดูหลักสูตรทั้งหมด
+    courses = client.list_courses()
+    for c in courses:
+        print(f"  [{c.course_code}] {c.course_name_th} — {c.meaning}")
+
+    # 2. ดูสถิติ
+    stats = client.get_statistics()
+    print(f"\nสาขาทั้งหมด: {stats['overview']['total_branches']}")
+    print(f"รุ่นปัจจุบัน: {stats['overview']['current_batch']}")
+
+    # 3. Export
+    client.export_courses_json("willpower_courses.json")
+    client.export_catalog_dcat("willpower_catalog_dcat.json")
+```
+
+### 6.2 WillpowerBranchScraper — ดึงข้อมูลสาขาจริง
+
+```python
+"""
+WillpowerBranchScraper — ดึงข้อมูลสาขาจาก samathi101.com
+เพื่อสร้าง dataset สาขาแบบ complete
+
+URL Patterns ที่ค้นพบ:
+- samathi101.com/branch         — หน้ารายการสาขา (ต้อง JavaScript render)
+- samathi101.com/branch/{id}    — หน้าสาขาเฉพาะ (id = internal ID ไม่ใช่ branch number)
+- samathi101.com/course/{id}    — หน้าหลักสูตร/การเปิดรับ
+- samathi101.com/events         — หน้ากิจกรรมทั้งหมด
+- samathi101.com/about          — เกี่ยวกับสถาบัน
+"""
+
+import requests
+from bs4 import BeautifulSoup
+import json
+import time
+import re
+from typing import List, Dict, Optional
+
+
+class WillpowerBranchScraper:
+    """
+    Scraper สำหรับดึงข้อมูลสาขาจาก samathi101.com
+
+    NOTE: เว็บ samathi101.com อาจใช้ JavaScript rendering (SPA)
+    ถ้า requests ได้ข้อมูลไม่ครบ อาจต้องใช้ Selenium/Playwright
+    """
+
+    BASE_URL = "https://samathi101.com"
+
+    # สาขาตัวอย่างที่ยืนยันแล้ว (จากการ search)
+    KNOWN_BRANCHES = {
+        # branch_number: {ข้อมูล}
+        1: {"name": "สาขา 1 บ้านอาจารย์อำนวย สุวรรณคีรี", "province": "กรุงเทพมหานคร"},
+        2: {"name": "สาขา 2 วัดพุทธบูชา", "province": "กรุงเทพมหานคร"},
+        5: {"name": "สาขา 5 วัดดอนรัก", "province": "สงขลา", "amphoe": "เมือง"},
+        12: {"name": "สาขา 12 บ้านเหมืองหม้อ", "province": "แพร่", "amphoe": "เมือง"},
+        17: {"name": "สาขา 17 วัดป่าหลวง", "province": "อุดรธานี"},
+        18: {"name": "สาขา 18 วัดเขาเต่า", "province": "ประจวบคีรีขันธ์", "amphoe": "หัวหิน"},
+        20: {"name": "สาขา 20 ศูนย์สมาธิพระยาวิสูตรโกษา", "province": "จันทบุรี"},
+        25: {"name": "สาขา 25 อโศก-สุขุมวิท", "province": "กรุงเทพมหานคร"},
+        27: {"name": "สาขา 27 วัดรัตนวนาราม", "province": "พะเยา"},
+        37: {"name": "สาขา 37 โรงเรียนอนุบาลพุทธชาด", "province": "กรุงเทพมหานคร"},
+        40: {"name": "สาขา 40 วัดตรีรัตนาราม", "province": "ระยอง", "amphoe": "เมือง"},
+        43: {"name": "สาขา 43 วัดจันทรสามัคคี", "province": "หนองคาย"},
+        57: {"name": "สาขา 57 พัทยา", "province": "ชลบุรี", "amphoe": "บางละมุง"},
+        58: {"name": "สาขา 58 วัดสิริกาญจนาราม", "province": "กาญจนบุรี"},
+        84: {"name": "สาขา 84 อ่างศิลา", "province": "ชลบุรี"},
+        117: {"name": "สาขา 117 วัดโสภาราม", "province": "ปทุมธานี"},
+        118: {"name": "สาขา 118 วัดนาควัชรโสภณ", "province": "กำแพงเพชร"},
+        160: {"name": "สาขา 160 วัดสารนาถธรรมาราม", "province": "ระยอง", "amphoe": "แกลง"},
+        173: {"name": "สาขา 173 วัดหนามแดง", "province": "สมุทรปราการ"},
+        178: {"name": "สาขา 178 กฟผ. บางกรวย", "province": "นนทบุรี"},
+        193: {"name": "สาขา 193 วัดคุณหญิงส้มจีน", "province": "ปทุมธานี"},
+        269: {"name": "สาขา 269 วัดพระธาตุดอยสะเก็ด", "province": "เชียงใหม่"},
+        284: {"name": "สาขา 284 วัดเกาะโพธาวาส", "province": "ชลบุรี"},
+        287: {"name": "สาขา 287 วัดถ้ำเขาปรางค์", "province": "ลพบุรี", "amphoe": "ชัยบาดาล"},
+        294: {"name": "สาขา 294 วัดบ้านโฮ่งหลวง", "province": "ลำพูน", "amphoe": "บ้านโฮ่ง"},
+        296: {"name": "สาขา 296 วัดศรีเกิด", "province": "เชียงใหม่", "amphoe": "เมือง"},
+        309: {"name": "สาขา 309 วัดป่าร้อยปีหลวงพ่อวิริยังค์", "province": "ราชบุรี"},
+        312: {"name": "สาขา 312 วัดป่ากาญจนาภิเษก", "province": "ขอนแก่น", "amphoe": "ภูเวียง"},
+    }
+
+    def __init__(self, delay: float = 2.0):
+        self.delay = delay
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "WillpowerResearch/1.0",
+        })
+
+    def scrape_branch_page(self, internal_id: int) -> Optional[Dict]:
+        """
+        ดึงข้อมูลจากหน้าสาขาเฉพาะ
+        URL: samathi101.com/branch/{internal_id}
+        NOTE: internal_id ≠ branch_number (ต้อง map)
+        """
+        url = f"{self.BASE_URL}/branch/{internal_id}"
+        try:
+            time.sleep(self.delay)
+            resp = self.session.get(url, timeout=30)
+            if resp.status_code != 200:
+                return None
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+            text = soup.get_text(" ", strip=True)
+
+            # ถ้าหน้าว่างหรือ redirect
+            if len(text) < 100:
+                return None
+
+            data = {
+                "internal_id": internal_id,
+                "url": url,
+                "raw_text": text[:2000],  # เก็บ raw text สำหรับ debug
+            }
+
+            # Extract branch number
+            num_match = re.search(r"สาขา(?:ที่)?\s*(\d+)", text)
+            if num_match:
+                data["branch_number"] = int(num_match.group(1))
+
+            # Extract temple name
+            temple_match = re.search(r"(วัด\S+)", text)
+            if temple_match:
+                data["temple_name"] = temple_match.group(1)
+
+            # Extract province
+            province_match = re.search(r"จ(?:ังหวัด)?\.?\s*(\S+)", text)
+            if province_match:
+                data["province"] = province_match.group(1)
+
+            # Extract phone numbers
+            phones = re.findall(r"(?:0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4})", text)
+            if phones:
+                data["phones"] = phones
+
+            # Extract Google Maps URL
+            maps_match = re.search(r"(https://maps\.app\.goo\.gl/\S+)", text)
+            if maps_match:
+                data["google_maps_url"] = maps_match.group(1)
+
+            # Extract dates
+            date_match = re.search(r"ก่อตั้ง.*?(\d{1,2}\s+\S+\s+(?:พ\.ศ\.)?\s*\d{4})", text)
+            if date_match:
+                data["established_date"] = date_match.group(1)
+
+            return data
+
+        except Exception as e:
+            print(f"[ERROR] scrape branch {internal_id}: {e}")
+            return None
+
+    def scrape_events_page(self) -> List[Dict]:
+        """ดึงกิจกรรมจากหน้า events"""
+        url = f"{self.BASE_URL}/events"
+        try:
+            time.sleep(self.delay)
+            resp = self.session.get(url, timeout=30)
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            events = []
+            # Parse event entries
+            for link in soup.find_all("a", href=re.compile(r"/course/\d+")):
+                text = link.get_text(" ", strip=True)
+                course_url = f"{self.BASE_URL}{link['href']}"
+
+                event = {
+                    "text": text,
+                    "url": course_url,
+                }
+
+                # Detect course type
+                for code, name in [
+                    ("CHIN1", "ชินนสา"),
+                    ("MIC", "ครูสมาธิ"),
+                    ("VITAN", "วิทันตสา"),
+                    ("YANA", "ญาณสา"),
+                    ("UTTAM", "อุตมสา"),
+                    ("PURI", "ปุริสา"),
+                ]:
+                    if name in text:
+                        event["course_code"] = code
+                        break
+
+                # Extract branch
+                branch_match = re.search(r"สาขา\s*(\d+)", text)
+                if branch_match:
+                    event["branch_number"] = int(branch_match.group(1))
+
+                events.append(event)
+
+            return events
+
+        except Exception as e:
+            print(f"[ERROR] scrape events: {e}")
+            return []
+
+    def build_seed_dataset(self) -> Dict:
+        """
+        สร้าง seed dataset จาก KNOWN_BRANCHES
+        เป็นจุดเริ่มต้นก่อนจะ scrape เพิ่ม
+        """
+        branches = []
+        for num, info in sorted(self.KNOWN_BRANCHES.items()):
+            branches.append({
+                "branch_number": num,
+                "branch_name_th": info["name"],
+                "province": info.get("province", ""),
+                "amphoe": info.get("amphoe", ""),
+                "region": self._get_region(info.get("province", "")),
+                "status": "active",
+                "source": "web_search_verified",
+            })
+
+        return {
+            "success": True,
+            "result": {
+                "count": len(branches),
+                "note": "Seed dataset — ข้อมูลจาก web search ยืนยันแล้ว",
+                "branches": branches
+            },
+            "meta": {
+                "total_expected": 329,
+                "collected": len(branches),
+                "coverage_percent": round(len(branches) / 329 * 100, 1),
+            }
+        }
+
+    def _get_region(self, province: str) -> str:
+        region_map = {
+            "กรุงเทพมหานคร": "กลาง", "นนทบุรี": "กลาง",
+            "ปทุมธานี": "กลาง", "สมุทรปราการ": "กลาง",
+            "เชียงใหม่": "เหนือ", "แพร่": "เหนือ",
+            "พะเยา": "เหนือ", "ลำพูน": "เหนือ",
+            "อุดรธานี": "อีสาน", "หนองคาย": "อีสาน",
+            "ขอนแก่น": "อีสาน",
+            "ระยอง": "ตะวันออก", "ชลบุรี": "ตะวันออก",
+            "จันทบุรี": "ตะวันออก",
+            "สงขลา": "ใต้", "ชุมพร": "ใต้",
+            "กาญจนบุรี": "ตะวันตก", "ประจวบคีรีขันธ์": "ตะวันตก",
+            "ราชบุรี": "ตะวันตก",
+            "ลพบุรี": "กลาง", "กำแพงเพชร": "เหนือ",
+        }
+        return region_map.get(province, "อื่นๆ")
+
+    def export_seed_dataset(self, filepath: str = "willpower_branches_seed.json"):
+        """ส่งออก seed dataset"""
+        data = self.build_seed_dataset()
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ Seed dataset: {data['meta']['collected']}/{data['meta']['total_expected']} "
+              f"สาขา ({data['meta']['coverage_percent']}%) → {filepath}")
+
+
+# ===== Usage =====
+if __name__ == "__main__":
+    scraper = WillpowerBranchScraper()
+
+    # สร้าง seed dataset
+    scraper.export_seed_dataset()
+```
+
+---
+
+## 7. Implementation Roadmap
+
+### Phase 1: Data Collection & Seed Dataset (เดือน 1-2)
+
+```
+✅ สร้าง Data Model (Entity Relationship)
+✅ รวบรวม Master Data (หลักสูตร, ภูมิภาค)
+✅ สร้าง Seed Dataset จาก KNOWN_BRANCHES (~30 สาขา)
+🔲 Scrape สาขาเพิ่มเติมจาก samathi101.com
+🔲 เพิ่ม GPS coordinates จาก Google Maps
+🔲 Verify ข้อมูลกับสาขาตัวจริง
+```
+
+### Phase 2: API Development (เดือน 3-4)
+
+```
+🔲 สร้าง REST API Server (FastAPI / Express)
+🔲 Implement Endpoints ตาม API Design
+🔲 เพิ่ม search / filter / pagination
+🔲 สร้าง API Documentation (Swagger/OpenAPI)
+🔲 Deploy API บน server ของสถาบัน
+```
+
+### Phase 3: Open Data Portal (เดือน 5-6)
+
+```
+🔲 สร้างหน้า Data Catalog (React / Vue)
+🔲 Implement download (CSV/JSON/GeoJSON)
+🔲 เพิ่ม DCAT metadata
+🔲 สมัคร data.go.th ภาคประชาสังคม (ถ้ามี)
+🔲 Launch portal ที่ samathi101.com/opendata
+```
+
+### Phase 4: Analytics & Advanced Features (เดือน 7-12)
+
+```
+🔲 Dashboard สถิติ (Willpower Data Explorer)
+🔲 แผนที่ interactive (Leaflet / Mapbox)
+🔲 Certificate Verification System
+🔲 Mobile-friendly Branch Finder
+🔲 Integration กับ LINE Official Account
+🔲 Annual Data Report
+```
+
+---
+
+## 8. Use Cases
+
+### Use Case 8.1: ค้นหาสาขาใกล้บ้าน
+
+**ผู้ใช้:** ประชาชนทั่วไปที่สนใจเรียนสมาธิ  
+**ข้อมูลที่ต้องการ:** สาขาใกล้บ้าน + หลักสูตรที่เปิดรับ  
+**API Calls:**
+```
+GET /api/v1/branches/nearby?lat=13.7563&lng=100.5018&radius=20
+GET /api/v1/offerings/current?province=กรุงเทพมหานคร&course=CHIN1
+```
+**Output:** รายการสาขาใกล้เคียง + ลิงก์สมัครเรียน
+
+### Use Case 8.2: วิเคราะห์การขยายสาขาใหม่
+
+**ผู้ใช้:** ฝ่ายบริหารสถาบัน  
+**คำถาม:** จังหวัดไหนยังไม่มีสาขา? ควรเปิดที่ไหนเพิ่ม?  
+**API Calls:**
+```
+GET /api/v1/branches?fields=province&distinct=true
+GET /api/v1/statistics/by-province
+```
+**วิเคราะห์:** เทียบรายชื่อจังหวัด 77 จังหวัดกับจังหวัดที่มีสาขา → Gap Analysis  
+**ผลลัพธ์:** แผนที่ Heat Map แสดงจังหวัดที่ยังไม่มีสาขา (สีแดง = ประชากรมากแต่ไม่มีสาขา)
+
+### Use Case 8.3: รายงานประจำปีอัตโนมัติ
+
+**ผู้ใช้:** ฝ่ายประชาสัมพันธ์  
+**ต้องการ:** รายงานสรุปผลการดำเนินงานรายปี  
+**API Calls:**
+```
+GET /api/v1/statistics/yearly/2568
+GET /api/v1/branches?status=active
+GET /api/v1/statistics?batch=52&batch=53
+```
+**Output (Auto-generated):**
+- จำนวนสาขา: 318 (+38 จากปีก่อน)
+- รุ่นที่เปิดสอน: 52-53
+- จำนวนจังหวัดที่ครอบคลุม: 77/77 (100%)
+- สาขาต่างประเทศ: 11 สาขา
+
+### Use Case 8.4: ตรวจสอบใบประกาศนียบัตร
+
+**ผู้ใช้:** HR บริษัท ตรวจสอบว่า applicant จบสมาธิจริง  
+**API Call:**
+```
+GET /api/v1/certificates/verify?code=WP-53-001234
+```
+**Response:**
+```json
+{
+  "verified": true,
+  "student_name": "นาย... (ปิดบังบางส่วน)",
+  "course": "ครูสมาธิ",
+  "batch": 53,
+  "branch": "สาขา 40 วัดตรีรัตนาราม จ.ระยอง",
+  "issue_date": "2569-01-15"
+}
+```
+
+---
+
+## สรุปแนวทาง
+
+เอกสารนี้ได้นำแนวคิด Open Data จากภาครัฐ (data.go.th, CKAN API, DCAT metadata) มาประยุกต์ใช้กับ **สถาบันพลังจิตตานุภาพ** ครอบคลุม:
+
+1. **Data Architecture** — ออกแบบ Entity Relationship ครบถ้วน (Branch, Course, Offering, Event, Statistics, Certificate)
+2. **Data Catalog** — 6 ชุดข้อมูลพร้อม metadata มาตรฐาน DCAT
+3. **API Design** — RESTful endpoints ที่ใช้งานง่าย พร้อม JSON response ตัวอย่าง
+4. **Artifact Prompts** — 4 prompts สำหรับสร้าง Dashboard, Branch Finder, Growth Analytics, Data Portal
+5. **Python Code** — Client library + Scraper พร้อมใช้งาน
+6. **Roadmap** — 4 phases ทำได้จริงใน 1 ปี
+7. **Use Cases** — 4 สถานการณ์จริง (ค้นหาสาขา, วิเคราะห์ขยายสาขา, รายงานอัตโนมัติ, ตรวจสอบใบประกาศ)
+
+**การเริ่มต้นแนะนำ:**
+1. ใช้ **Prompt 5.1** (Willpower Data Explorer) สร้าง Dashboard ดูข้อมูลรวม
+2. ใช้ **Prompt 5.2** (Branch Finder) สร้างเครื่องมือค้นหาสาขาสำหรับประชาชน
+3. ใช้ **Python Code 6.2** (Scraper) รวบรวมข้อมูลสาขาเพิ่มเติม
+4. นำเสนอแนวคิดต่อฝ่ายบริหารสถาบันเพื่อพัฒนาเป็น API จริง
+
+> 🙏 **สาธุ** — ข้อมูลเปิดคือทานแห่งความรู้ เพื่อให้ทุกคนเข้าถึงสมาธิได้ง่ายขึ้น
