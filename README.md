@@ -61,12 +61,14 @@ Prompt สำหรับให้ AI สร้างเอกสารโปร
 | `ai-work-library/` | ระบบ AI Work Library — แปลง Claude Credits เป็น Prompt Assets |
 
 ### project-plans/
-แผนปรับปรุงโปรเจกต์
+แผนปรับปรุงโปรเจกต์ และ POC
 
 | ไฟล์ | เนื้อหา |
 |------|---------|
 | `MPT-IMPROVEMENTS.md` | แผนปรับปรุง MediaMTX Patrol Tracking |
 | `odoo-pos-cashcard/` | POC ระบบ Cash Card สำหรับโรงอาหารโรงพยาบาล (Odoo POS) |
+| `odoo-dormitory-poc/` | POC ระบบบริหารหอพัก/ห้องพัก Multi-Tenant (Odoo) |
+| `odoo-willpower-institute/` | POC ระบบบริหารสาขาสถาบันพลังจิตตานุภาพ Multi-Tenant (Odoo) |
 
 ---
 
