@@ -13,11 +13,13 @@ prompt-library/
 │   ├── open-data-guides/          # คู่มือ Open Data ภาครัฐ
 │   ├── project-plans/             # แผนปรับปรุงโปรเจกต์
 │   ├── rag-guides/                # คู่มือ RAG Pipeline
-│   └── workflow-guides/           # คู่มือ Git Workflow
+│   └── workflow-guides/           # คู่มือ Git/AI Workflow
 │
-└── references/                    # บันทึกอ้างอิง
-    ├── chatgpt-chats/             # บทสนทนาจาก ChatGPT
-    └── deepseek-chats/            # บทสนทนาจาก DeepSeek
+├── references/                    # บันทึกอ้างอิง
+│   ├── chatgpt-chats/             # บทสนทนาจาก ChatGPT
+│   └── deepseek-chats/            # บทสนทนาจาก DeepSeek
+│
+└── new/                           # ไฟล์ใหม่รอจัดเข้าที่
 ```
 
 ---
@@ -56,6 +58,7 @@ Prompt สำหรับให้ AI สร้างเอกสารโปร
 | ไฟล์ | เนื้อหา |
 |------|---------|
 | `github-workflow-skills.md` | Claude Code Skills สำหรับ Git Workflow |
+| `ai-work-library/` | ระบบ AI Work Library — แปลง Claude Credits เป็น Prompt Assets |
 
 ### project-plans/
 แผนปรับปรุงโปรเจกต์
@@ -63,6 +66,7 @@ Prompt สำหรับให้ AI สร้างเอกสารโปร
 | ไฟล์ | เนื้อหา |
 |------|---------|
 | `MPT-IMPROVEMENTS.md` | แผนปรับปรุง MediaMTX Patrol Tracking |
+| `odoo-pos-cashcard/` | POC ระบบ Cash Card สำหรับโรงอาหารโรงพยาบาล (Odoo POS) |
 
 ---
 
